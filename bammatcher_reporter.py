@@ -72,6 +72,7 @@ def main():
     reports = sys.argv[1:]
     if not reports:
         sys.stderr.write("usage: ./{0} 1.report 2.report 3.report ...".format(sys.argv[0]))
+        exit(1)
 
     # Obtain the relatedness info
     samples, rel_table = get_relatedness_info(reports)
