@@ -2,13 +2,14 @@
 import sys
 
 
-def get_relatedness_info(reports):
+def get_info(reports):
 
     # Initialize unique sample set
     samples = set()
 
-    # Initialize the relatedness table
+    # Initialize the relatedness and sites count tables
     rel_table = {}
+    sites_count = {}
 
     for report in reports:
 
@@ -23,8 +24,14 @@ def get_relatedness_info(reports):
         with open(report) as report_fp:
             for line in report_fp:
 
+                # Identify the line with the total sites compared
+                if "total sites compared" in line.lower():
+
+                    # Obtain the sites count
+                    sites_count[(sample_id1, sample_id2)] = line.split(":", 1)[1].strip()
+
                 # Identify the line with the fraction of common
-                if "fraction of common" in line.lower():
+                elif "fraction of common" in line.lower():
 
                     # Obtain the fraction of common
                     rel_table[(sample_id1, sample_id2)] = line.split(":", 1)[1].strip().split()[0]
@@ -33,52 +40,64 @@ def get_relatedness_info(reports):
     samples = list(samples)
     samples.sort()
 
-    return samples, rel_table
+    return samples, rel_table, sites_count
 
 
-def generate_relatedness_table(samples, rel_table):
+def generate_table(samples, table, output_file):
 
-    # Output the header
-    print(",".join([""] + samples))
+    with open(output_file, "w") as out:
 
-    # Obtain relatedness value according to sample order
-    for sample1 in samples:
+        # Output the header
+        out.write(",".join([""] + samples))
+        out.write("\n")
 
-        # Initialize list of values for sample1
-        values = [sample1]
+        # Obtain values according to sample order
+        for sample1 in samples:
 
-        for sample2 in samples:
+            # Initialize list of values for sample1
+            values = [sample1]
 
-            # Skip certain pairs to ensure the output is an upper triangular matrix
-            if sample1 > sample2:
-                values.append(".")
-                continue
+            for sample2 in samples:
 
-            # Try to find the pair in the rel_table dictionary
-            if (sample1, sample2) in rel_table:
-                values.append(rel_table[(sample1, sample2)])
-            elif (sample2, sample1) in rel_table:
-                values.append(rel_table[(sample2, sample1)])
-            else:
-                values.append(".")
+                # Skip certain pairs to ensure the output is an upper triangular matrix
+                if sample1 > sample2:
+                    values.append(".")
+                    continue
 
-        # Output the values for sample1
-        print(",".join(values))
+                # Try to find the pair in the table dictionary
+                if (sample1, sample2) in table:
+                    values.append(table[(sample1, sample2)])
+                elif (sample2, sample1) in table:
+                    values.append(table[(sample2, sample1)])
+                else:
+                    values.append(".")
+
+            # Output the values for sample1
+            out.write(",".join(values))
+            out.write("\n")
 
 
 def main():
 
-    # Obtain the list of reports from arguments
-    reports = sys.argv[1:]
-    if not reports:
-        sys.stderr.write("usage: ./{0} 1.report 2.report 3.report ...".format(sys.argv[0]))
+    # Check if command was run correctly
+    if len(sys.argv) <= 2:
+        sys.stderr.write("usage: ./{0} <output_prefix> 1.report 2.report 3.report ...\n".format(sys.argv[0]))
         exit(1)
 
-    # Obtain the relatedness info
-    samples, rel_table = get_relatedness_info(reports)
+    # Obtain the data from arguments
+    output_prefix = sys.argv[1]
+    reports = sys.argv[2:]
 
-    # Write table to file
-    generate_relatedness_table(samples, rel_table)
+    # Obtain the relatedness and sites count info
+    samples, rel_table, sites_count = get_info(reports)
+
+    # Write relatedness table to file
+    out_file = "{0}.relatedness.csv".format(output_prefix)
+    generate_table(samples, rel_table, out_file)
+
+    # Write sites count table to file
+    out_file = "{0}.sites_count.csv".format(output_prefix)
+    generate_table(samples, sites_count, out_file)
 
 
 if __name__ == "__main__":
